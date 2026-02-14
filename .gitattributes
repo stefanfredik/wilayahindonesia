@@ -1,0 +1,6 @@
+*.php linguist-detectable=true 
+*.sql linguist-detectable=true
+*.js linguist-detectable=false
+*.html linguist-detectable=false
+*.xml linguist-detectable=false
+db/*.sql filter=lfs diff=lfs merge=lfs -text

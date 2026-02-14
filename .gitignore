@@ -1,0 +1,8 @@
+/backup
+dump-*
+*.sql.gz
+.env
+api/.env
+db/wilayah_full.sql
+db/*.sql
+/db/*.sql

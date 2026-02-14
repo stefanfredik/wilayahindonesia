@@ -1,0 +1,75 @@
+services:
+  # ── PHP + Apache ──────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wilayah-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - APACHE_DOCUMENT_ROOT=/var/www/html
+      - DB_HOST=mysql
+      - DB_NAME=${DB_NAME:-wilayah}
+      - DB_USER=${DB_USER:-wilayah}
+      - DB_PASS=${DB_PASS:-wilayah}
+      - DB_CHARSET=utf8mb4
+    networks:
+      - wilayah-net
+
+  # ── MySQL ─────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: wilayah-mysql
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-secret}
+      MYSQL_DATABASE: ${DB_NAME:-wilayah}
+      MYSQL_USER: ${DB_USER:-wilayah}
+      MYSQL_PASSWORD: ${DB_PASS:-wilayah}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./db/wilayah_full.sql:/docker-entrypoint-initdb.d/01-wilayah_full.sql
+    command: >
+      --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max_allowed_packet=64M --innodb_buffer_pool_size=256M
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-secret}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - wilayah-net
+
+  # ── phpMyAdmin (opsional, untuk debugging) ────────────────────
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: wilayah-pma
+    restart: unless-stopped
+    ports:
+      - "${PMA_PORT:-8888}:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-secret}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - wilayah-net
+
+volumes:
+  mysql-data:
+
+
+networks:
+  wilayah-net:
+    driver: bridge

@@ -1,0 +1,12 @@
+.git
+.gitignore
+.dockerignore
+docker-compose.yml
+Dockerfile
+Makefile
+*.md
+LICENSE
+change_log.md
+db/archive/
+docs/
+mysql-data/
