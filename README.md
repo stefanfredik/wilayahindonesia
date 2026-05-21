@@ -65,6 +65,93 @@ docker compose down -v     # Stop + hapus data (reset database)
 
 ---
 
+## Migrasi Database (Reverse Geocoding)
+
+Fitur **Reverse Geocoding** (`/api/reverse` dan `/api/reverse/batch`) membutuhkan
+kolom `geom` bertipe `GEOMETRY` dan `SPATIAL INDEX` di tabel `wilayah_boundaries`.
+Migrasi ini **tidak otomatis** dan harus dijalankan sekali setelah deploy.
+
+### Prasyarat
+
+- Container sudah berjalan (`make up`)
+- Database sudah terisi data (`wilayah_boundaries` sudah ada)
+
+### Jalankan Migrasi
+
+```bash
+make db-migrate
+```
+
+> **Estimasi waktu:** 3–5 menit untuk ~90.000 record.
+> API tetap **bisa diakses** selama migrasi berlangsung karena migrasi tidak mengunci tabel.
+
+#### Apa yang dilakukan migrasi ini?
+
+| Langkah | Aksi | Keterangan |
+|---|---|---|
+| 1 | Tambah kolom `geom GEOMETRY` | Nullable sementara |
+| 2 | Ganti index terpisah `idx_lat` + `idx_lng` | Jadi composite `idx_lat_lng (lat, lng)` |
+| 3 | Konversi 90.803 path JSON → POLYGON/MULTIPOLYGON | Diproses per 500 baris |
+| 4 | SET NOT NULL + buat `SPATIAL INDEX idx_geom` | Aktifkan R-tree lookup |
+
+### Cek Status Migrasi
+
+```bash
+make db-migrate-status
+```
+
+Output yang diharapkan setelah migrasi selesai:
+
+```
+total_village  geom_filled  pct_done  polygon_count  multipolygon_count
+82978          82978        100.0     78599          4379
+
+INDEX_NAME    INDEX_TYPE
+idx_geom      SPATIAL
+idx_lat_lng   BTREE
+```
+
+### Jalankan Ulang (Idempoten)
+
+Migrasi aman dijalankan berkali-kali — setiap langkah memeriksa apakah sudah
+dilakukan sebelumnya dan melewatinya jika sudah ada.
+
+```bash
+make db-migrate   # aman dijalankan ulang
+```
+
+### Tanpa `make` (Manual)
+
+Jika tidak menggunakan Makefile:
+
+```bash
+# Via Docker
+docker compose exec app php /var/www/html/db/migrate_geometry.php
+
+# Atau langsung di server (tanpa Docker)
+php db/migrate_geometry.php
+```
+
+### Rollback
+
+Jika ingin membatalkan migrasi dan kembali ke kondisi semula:
+
+```bash
+docker compose exec mysql mysql -u wilayah -pwilayah wilayah -e "
+  ALTER TABLE wilayah_boundaries
+    DROP INDEX idx_geom,
+    DROP INDEX idx_lat_lng,
+    DROP COLUMN geom,
+    ADD INDEX idx_lat (lat),
+    ADD INDEX idx_lng (lng);
+"
+```
+
+> Endpoint `/api/reverse` dan `/api/reverse/batch` tetap berfungsi setelah rollback
+> dengan mode fallback (bounding-box + PHP ray-casting), hanya lebih lambat.
+
+---
+
 ## Konfigurasi
 
 Environment variable dapat diatur di file `.env`:

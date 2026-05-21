@@ -1,4 +1,4 @@
-.PHONY: up down build restart logs shell mysql clean status test
+.PHONY: up down build restart logs shell mysql clean status test db-migrate db-migrate-status
 
 # ── Start / Stop ────────────────────────────────────────────
 up:					## Start all services
@@ -41,6 +41,24 @@ db-import:			## Re-import SQL into running MySQL (destructive!)
 	docker compose exec -T mysql mysql -u root -psecret wilayah < db/wilayah_luas.sql
 	docker compose exec -T mysql mysql -u root -psecret wilayah < db/wilayah_penduduk.sql
 	docker compose exec -T mysql mysql -u root -psecret wilayah < db/wilayah_pulau.sql
+
+db-migrate:			## Run geometry migration (adds SPATIAL INDEX for reverse geocoding)
+	@echo "Starting geometry migration. This may take 3–5 minutes..."
+	docker compose exec app php /var/www/html/db/migrate_geometry.php
+	@echo "Migration done. Verify with: make db-migrate-status"
+
+db-migrate-status:	## Check geometry migration status
+	docker compose exec mysql mysql -u$${DB_USER:-wilayah} -p$${DB_PASS:-wilayah} wilayah -e "\
+	  SELECT \
+	    COUNT(*) AS total_village, \
+	    SUM(geom IS NOT NULL) AS geom_filled, \
+	    ROUND(SUM(geom IS NOT NULL) * 100.0 / COUNT(*), 1) AS pct_done, \
+	    SUM(ST_GeometryType(geom) = 'Polygon') AS polygon_count, \
+	    SUM(ST_GeometryType(geom) = 'MultiPolygon') AS multipolygon_count \
+	  FROM wilayah_boundaries WHERE CHAR_LENGTH(kode) = 13; \
+	  SELECT INDEX_NAME, INDEX_TYPE FROM information_schema.STATISTICS \
+	  WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='wilayah_boundaries' \
+	  AND INDEX_NAME IN ('idx_geom','idx_lat_lng');"
 
 # ── Test ────────────────────────────────────────────────────
 test:				## Run API smoke test
