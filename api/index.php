@@ -24,9 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// Only GET is supported
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    jsonError('Method not allowed. Use GET.', 405);
+// GET and POST are supported (POST for batch endpoint)
+if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'POST'])) {
+    jsonError('Method not allowed. Use GET or POST.', 405);
 }
 
 // ── resolve endpoint ───────────────────────────────────────────
@@ -53,6 +53,7 @@ switch ($endpoint) {
                 'GET /api/regions?level=N&parent=CODE' => 'Generic region list',
                 'GET /api/search?q=keyword'       => 'Search by name',
                 'GET /api/reverse?lat=X&lng=Y'    => 'Reverse geocoding: full address from coordinate',
+                'POST /api/reverse/batch'          => 'Batch reverse geocoding: up to 500 points per request',
                 'GET /api/{code}'                 => 'Detail by region code',
                 'GET /api/{code}?boundaries=1'    => 'Detail with boundary polygons',
                 'GET /api/boundaries/{code}'      => 'Boundary polygon for a region (all levels)',
@@ -90,6 +91,10 @@ switch ($endpoint) {
 
     case 'reverse':
         require __DIR__ . '/handlers/reverse.php';
+        break;
+
+    case 'reverse/batch':
+        require __DIR__ . '/handlers/reverse_batch.php';
         break;
 
     default:
