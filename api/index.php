@@ -52,6 +52,7 @@ switch ($endpoint) {
                 'GET /api/villages?district=XXXXXXXX' => 'List villages',
                 'GET /api/regions?level=N&parent=CODE' => 'Generic region list',
                 'GET /api/search?q=keyword'       => 'Search by name',
+                'GET /api/reverse?lat=X&lng=Y'    => 'Reverse geocoding: full address from coordinate',
                 'GET /api/{code}'                 => 'Detail by region code',
                 'GET /api/{code}?boundaries=1'    => 'Detail with boundary polygons',
                 'GET /api/boundaries/{code}'      => 'Boundary polygon for a region (all levels)',
@@ -85,6 +86,10 @@ switch ($endpoint) {
 
     case 'search':
         require __DIR__ . '/handlers/search.php';
+        break;
+
+    case 'reverse':
+        require __DIR__ . '/handlers/reverse.php';
         break;
 
     default:

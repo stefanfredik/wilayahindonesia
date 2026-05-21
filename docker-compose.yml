@@ -14,11 +14,11 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      - APACHE_DOCUMENT_ROOT=/var/www/html
       - DB_HOST=mysql
       - DB_NAME=${DB_NAME:-wilayah}
       - DB_USER=${DB_USER:-wilayah}
       - DB_PASS=${DB_PASS:-wilayah}
+      - DB_PORT=${DB_PORT:-3306}
       - DB_CHARSET=utf8mb4
     networks:
       - wilayah-net
@@ -39,7 +39,7 @@ services:
       - mysql-data:/var/lib/mysql
       - ./db/wilayah_full.sql:/docker-entrypoint-initdb.d/01-wilayah_full.sql
     command: >
-      --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max_allowed_packet=64M --innodb_buffer_pool_size=256M
+      --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max_allowed_packet=64M --innodb_buffer_pool_size=256M --skip-log-bin
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-secret}" ]
       interval: 10s
@@ -49,7 +49,7 @@ services:
     networks:
       - wilayah-net
 
-  # ── phpMyAdmin (opsional, untuk debugging) ────────────────────
+  # ── phpMyAdmin ────────────────────────────────────────────────
   phpmyadmin:
     image: phpmyadmin:5
     container_name: wilayah-pma
@@ -68,7 +68,6 @@ services:
 
 volumes:
   mysql-data:
-
 
 networks:
   wilayah-net:
